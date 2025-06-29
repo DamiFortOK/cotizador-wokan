@@ -1,156 +1,157 @@
 import React, { useEffect, useState } from 'react';
-import { getMarcas, getModelos, getAnios, cotizar } from '../services/api';
 
-const CotizadorAuto = () => {
-  const [form, setForm] = useState({
-    nombre: '',
-    email: '',
-    telefono: '',
-    codigo_postal: '',
-    fecha_nacimiento: '',
-    sexo: 'm',
-    estado_civil: 'soltero',
-    tiene_gnc: 0,
-    tiene_rastreador: 0,
-    es_cero: 0,
-  });
+const TOKEN = '4d8ac3d6de870c56fd6d33f6d5648b79';
 
+export default function CotizadorAuto() {
   const [marcas, setMarcas] = useState([]);
   const [modelos, setModelos] = useState([]);
   const [anios, setAnios] = useState([]);
-  const [seleccion, setSeleccion] = useState({
-    marca: '',
-    modelo: '',
-    anio: '',
-    data_auto_id: '',
-  });
-
-  const [resultado, setResultado] = useState(null);
+  const [marcaId, setMarcaId] = useState('');
+  const [modeloId, setModeloId] = useState('');
+  const [anioSeleccionado, setAnioSeleccionado] = useState('');
+  const [cotizaciones, setCotizaciones] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => { getMarcas().then(setMarcas); }, []);
+  useEffect(() => {
+    fetch('https://webpack.wokan.com.ar/api/v1/autos/marcas', {
+      headers: {
+        Authorization: 'Bearer ' + TOKEN,
+        'Content-Type': 'application/json',
+      },
+    })
+      .then(res => res.json())
+      .then(data => setMarcas(data.result));
+  }, []);
 
   useEffect(() => {
-    if (seleccion.marca) {
-      getModelos(seleccion.marca).then(setModelos);
-      setAnios([]);
-      setSeleccion((prev) => ({ ...prev, modelo: '', anio: '', data_auto_id: '' }));
-    }
-  }, [seleccion.marca]);
+    if (!marcaId) return;
+    fetch(`https://webpack.wokan.com.ar/api/v1/autos/modelos?filter[marca]=${marcaId}`, {
+      headers: {
+        Authorization: 'Bearer ' + TOKEN,
+        'Content-Type': 'application/json',
+      },
+    })
+      .then(res => res.json())
+      .then(data => setModelos(data.result));
+  }, [marcaId]);
 
   useEffect(() => {
-    if (seleccion.modelo) {
-      getAnios(seleccion.modelo).then(setAnios);
-      setSeleccion((prev) => ({ ...prev, anio: '', data_auto_id: '' }));
-    }
-  }, [seleccion.modelo]);
+    if (!modeloId) return;
+    fetch(`https://webpack.wokan.com.ar/api/v1/autos/anios?filter[modelo]=${modeloId}`, {
+      headers: {
+        Authorization: 'Bearer ' + TOKEN,
+        'Content-Type': 'application/json',
+      },
+    })
+      .then(res => res.json())
+      .then(data => setAnios(data.result));
+  }, [modeloId]);
 
-  useEffect(() => {
-    if (seleccion.anio) {
-      setSeleccion((prev) => ({ ...prev, data_auto_id: seleccion.anio }));
-    }
-  }, [seleccion.anio]);
-
-  const handleFormChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    const val = type === 'checkbox' ? (checked ? 1 : 0) : value;
-    setForm({ ...form, [name]: val });
-  };
-
-  const handleSelectChange = (e) => {
-    const { name, value } = e.target;
-    setSeleccion({ ...seleccion, [name]: value });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!seleccion.data_auto_id) return alert('Faltan datos del vehículo');
+  const handleCotizar = async () => {
     setLoading(true);
-    setResultado(null);
-
-    const payload = {
-      ...form,
-      anio: new Date(seleccion.anio).getFullYear(),
-      data_auto_id: seleccion.data_auto_id,
-    };
-
     try {
-      const res = await cotizar(payload);
-      setResultado(res);
-    } catch (error) {
-      setResultado({ error: 'Error al consultar la API' });
+      const res = await fetch('https://webpack.wokan.com.ar/api/v1/autos/cotizacion', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer ' + TOKEN,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nombre: "Pedro Gomez",
+          email: "PedroG0m3zz11@yopmail.com",
+          telefono: "1135604789",
+          codigo_postal: 1759,
+          anio: anioSeleccionado,
+          data_auto_id: modeloId,
+          es_cero: false,
+          estado_civil: "soltero",
+          fecha_nacimiento: "1995-01-01",
+          sexo: "m",
+          tiene_gnc: false,
+          tiene_rastreador: false,
+          recaptcha_response: "sin-captcha"
+        }),
+      });
+
+      const data = await res.json();
+      setCotizaciones(data.aseguradoras || []);
+    } catch (err) {
+      console.error('Error al cotizar:', err);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto mt-8 p-6 bg-white rounded-2xl shadow-lg">
-      <h2 className="text-3xl font-bold text-center mb-6 text-blue-700">Cotizá tu Seguro</h2>
+    <div className="bg-white p-6 rounded shadow-md w-full max-w-md">
+      <h2 className="text-xl font-semibold mb-4">Cotizador de Auto</h2>
 
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-        {/* Datos personales */}
-        <input name="nombre" placeholder="Nombre completo" onChange={handleFormChange} required className="input" />
-        <input name="email" type="email" placeholder="Email" onChange={handleFormChange} required className="input" />
-        <input name="telefono" placeholder="Teléfono" onChange={handleFormChange} required className="input" />
-        <input name="codigo_postal" placeholder="Código Postal" onChange={handleFormChange} required className="input" />
-        <input name="fecha_nacimiento" type="date" onChange={handleFormChange} required className="input" />
-
-        {/* Selects dinámicos */}
-        <select name="marca" onChange={handleSelectChange} required className="input">
-          <option value="">Seleccioná marca</option>
-          {marcas.map(m => <option key={m.id} value={m.id}>{m.descripcion}</option>)}
+      <div className="mb-4">
+        <label className="block mb-1">Marca:</label>
+        <select className="w-full border px-2 py-1" onChange={(e) => setMarcaId(e.target.value)} value={marcaId}>
+          <option value="">Seleccionar Marca</option>
+          {marcas.map((marca) => (
+            <option key={marca.id} value={marca.id}>{marca.descripcion}</option>
+          ))}
         </select>
+      </div>
 
-        {modelos.length > 0 && (
-          <select name="modelo" onChange={handleSelectChange} required className="input">
-            <option value="">Seleccioná modelo</option>
-            {modelos.map(m => <option key={m.id} value={m.id}>{m.descripcion}</option>)}
-          </select>
-        )}
-
-        {anios.length > 0 && (
-          <select name="anio" onChange={handleSelectChange} required className="input">
-            <option value="">Seleccioná año</option>
-            {anios.map(a => <option key={a.id} value={a.id}>{a.descripcion}</option>)}
-          </select>
-        )}
-
-        {/* Datos adicionales */}
-        <select name="sexo" onChange={handleFormChange} className="input">
-          <option value="m">Masculino</option>
-          <option value="f">Femenino</option>
+      <div className="mb-4">
+        <label className="block mb-1">Modelo:</label>
+        <select className="w-full border px-2 py-1" onChange={(e) => setModeloId(e.target.value)} value={modeloId} disabled={!marcaId}>
+          <option value="">Seleccionar Modelo</option>
+          {modelos.map((modelo) => (
+            <option key={modelo.id} value={modelo.id}>{modelo.descripcion}</option>
+          ))}
         </select>
+      </div>
 
-        <select name="estado_civil" onChange={handleFormChange} className="input">
-          <option value="soltero">Soltero</option>
-          <option value="casado">Casado</option>
+      <div className="mb-4">
+        <label className="block mb-1">Año:</label>
+        <select className="w-full border px-2 py-1" onChange={(e) => setAnioSeleccionado(e.target.value)} value={anioSeleccionado} disabled={!modeloId}>
+          <option value="">Seleccionar Año</option>
+          {anios.map((anio) => (
+            <option key={anio.id} value={anio.descripcion}>{anio.descripcion}</option>
+          ))}
         </select>
+      </div>
 
-        <div className="col-span-2 flex flex-wrap gap-4 mt-2">
-          <label className="checkbox"><input type="checkbox" name="tiene_gnc" onChange={handleFormChange} /> GNC</label>
-          <label className="checkbox"><input type="checkbox" name="tiene_rastreador" onChange={handleFormChange} /> Rastreador</label>
-          <label className="checkbox"><input type="checkbox" name="es_cero" onChange={handleFormChange} /> 0km</label>
-        </div>
+      <button
+        className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+        disabled={!anioSeleccionado || loading}
+        onClick={handleCotizar}
+      >
+        {loading ? 'Cotizando...' : 'Cotizar'}
+      </button>
 
-        <div className="col-span-2 mt-4">
-          <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 font-semibold rounded-lg transition-all">
-            {loading ? 'Consultando...' : 'Cotizar Seguro'}
-          </button>
-        </div>
-      </form>
+      {cotizaciones.length > 0 && (
+        <div className="mt-6">
+          <h3 className="text-lg font-semibold mb-2">Cotizaciones:</h3>
+                <ul className="space-y-4">
+        {cotizaciones.map((item, idx) => (
+          <li key={idx} className="border rounded p-4 bg-gray-50">
+            <p className="font-bold text-lg mb-2">{item.aseguradora.nombre}</p>
+            <p className="text-sm mb-2">Estado: {item.cotizador.estado}</p>
 
-      {resultado && (
-        <div className="mt-6 bg-gray-100 rounded-lg p-4">
-          <h3 className="font-semibold text-lg mb-2">Resultado:</h3>
-          <pre className="text-sm whitespace-pre-wrap">{JSON.stringify(resultado, null, 2)}</pre>
+            {item.cotizador.coberturas?.length > 0 ? (
+              <div className="space-y-2">
+                {item.cotizador.coberturas.map((cobertura, i) => (
+                  <div key={i} className="border-t pt-2 text-sm">
+                    <p><strong>{cobertura.nombre}</strong></p>
+                    <p>{cobertura.descripcion}</p>
+                    <p>Prima: ${cobertura.prima}</p>
+                    <p>Suma asegurada: {cobertura.suma_asegurada}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 italic">Aún no hay coberturas disponibles.</p>
+            )}
+          </li>
+        ))}
+        </ul>
         </div>
       )}
     </div>
   );
-};
-
-export default CotizadorAuto;
-
-// El componente CotizadorAuto.jsx estará definido a continuación en otro paso por espacio
+}
