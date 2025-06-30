@@ -13,74 +13,56 @@ export default function CotizadorAuto() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetch('https://webpack.wokan.com.ar/api/v1/autos/marcas', {
-      headers: {
-        Authorization: 'Bearer ' + TOKEN,
-        'Content-Type': 'application/json',
-      },
-    })
-      .then(res => res.json())
-      .then(data => setMarcas(data.result));
-  }, []);
+  fetch('/api/proxy-marcas')
+    .then(res => res.json())
+    .then(data => setMarcas(data.result));
+}, []);
 
   useEffect(() => {
-    if (!marcaId) return;
-    fetch(`https://webpack.wokan.com.ar/api/v1/autos/modelos?filter[marca]=${marcaId}`, {
-      headers: {
-        Authorization: 'Bearer ' + TOKEN,
-        'Content-Type': 'application/json',
-      },
-    })
-      .then(res => res.json())
-      .then(data => setModelos(data.result));
-  }, [marcaId]);
+  if (!marcaId) return;
+  fetch(`/api/proxy-modelos?marca=${marcaId}`)
+    .then(res => res.json())
+    .then(data => setModelos(data.result));
+}, [marcaId]);
 
   useEffect(() => {
-    if (!modeloId) return;
-    fetch(`https://webpack.wokan.com.ar/api/v1/autos/anios?filter[modelo]=${modeloId}`, {
-      headers: {
-        Authorization: 'Bearer ' + TOKEN,
-        'Content-Type': 'application/json',
-      },
-    })
-      .then(res => res.json())
-      .then(data => setAnios(data.result));
-  }, [modeloId]);
+  if (!modeloId) return;
+  fetch(`/api/proxy-anios?marca=${marcaId}`)
+    .then(res => res.json())
+    .then(data => setAnios(data.result));
+}, [modeloId]);
 
   const handleCotizar = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('https://webpack.wokan.com.ar/api/v1/autos/cotizacion', {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + TOKEN,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          nombre: "Pedro Gomez",
-          email: "PedroG0m3zz11@yopmail.com",
-          telefono: "1135604789",
-          codigo_postal: 1759,
-          anio: anioSeleccionado,
-          data_auto_id: modeloId,
-          es_cero: false,
-          estado_civil: "soltero",
-          fecha_nacimiento: "1995-01-01",
-          sexo: "m",
-          tiene_gnc: false,
-          tiene_rastreador: false,
-          recaptcha_response: "sin-captcha"
-        }),
-      });
+  setLoading(true);
+  try {
+    const res = await fetch('/api/proxy-cotizacion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nombre: "Pedro Gomez",
+        email: "PedroG0m3zz11@yopmail.com",
+        telefono: "1135604789",
+        codigo_postal: 1759,
+        anio: anioSeleccionado,
+        data_auto_id: modeloId,
+        es_cero: false,
+        estado_civil: "soltero",
+        fecha_nacimiento: "1995-01-01",
+        sexo: "m",
+        tiene_gnc: false,
+        tiene_rastreador: false,
+        recaptcha_response: "sin-captcha"
+      }),
+    });
 
-      const data = await res.json();
-      setCotizaciones(data.aseguradoras || []);
-    } catch (err) {
-      console.error('Error al cotizar:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const data = await res.json();
+    setCotizaciones(data.aseguradoras || []);
+  } catch (err) {
+    console.error('Error al cotizar:', err);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="bg-white p-6 rounded shadow-md w-full max-w-md">
